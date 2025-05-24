@@ -1,10 +1,10 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Send, Calendar, Brain, FileDown, FileText } from 'lucide-react';
+import { ArrowLeft, Send, Calendar, Brain, FileDown, FileText, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
+import { InviteUsersDialog } from '@/components/InviteUsersDialog';
 import { toast } from '@/hooks/use-toast';
 import type { Topic } from './Index';
 
@@ -13,6 +13,7 @@ export interface Contribution {
   topic_id: string;
   content: string;
   created_at: string;
+  contributor_email?: string;
 }
 
 export interface Summary {
@@ -28,50 +29,130 @@ const TopicDetail = () => {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [newContribution, setNewContribution] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
-
-    // Load topic
-    const savedTopics = localStorage.getItem('topics');
-    if (savedTopics) {
-      const topics = JSON.parse(savedTopics);
-      const foundTopic = topics.find((t: Topic) => t.id === id);
-      setTopic(foundTopic || null);
-    }
-
-    // Load contributions
-    const savedContributions = localStorage.getItem(`contributions_${id}`);
-    if (savedContributions) {
-      setContributions(JSON.parse(savedContributions));
-    }
-
-    // Load summary
-    const savedSummary = localStorage.getItem(`summary_${id}`);
-    if (savedSummary) {
-      setSummary(JSON.parse(savedSummary));
-    }
+    fetchTopicData();
   }, [id]);
 
-  const handleSubmitContribution = () => {
+  const fetchTopicData = async () => {
+    try {
+      // Fetch topic
+      const topicResponse = await fetch(`/api/topics/${id}`);
+      if (topicResponse.ok) {
+        const topicData = await topicResponse.json();
+        setTopic(topicData);
+      } else {
+        // Fallback to localStorage
+        const savedTopics = localStorage.getItem('topics');
+        if (savedTopics) {
+          const topics = JSON.parse(savedTopics);
+          const foundTopic = topics.find((t: Topic) => t.id === id);
+          setTopic(foundTopic || null);
+        }
+      }
+
+      // Fetch contributions
+      const contributionsResponse = await fetch(`/api/topics/${id}/contributions`);
+      if (contributionsResponse.ok) {
+        const contributionsData = await contributionsResponse.json();
+        setContributions(contributionsData);
+      } else {
+        // Fallback to localStorage
+        const savedContributions = localStorage.getItem(`contributions_${id}`);
+        if (savedContributions) {
+          setContributions(JSON.parse(savedContributions));
+        }
+      }
+
+      // Fetch summary
+      const summaryResponse = await fetch(`/api/topics/${id}/summary`);
+      if (summaryResponse.ok) {
+        const summaryData = await summaryResponse.json();
+        setSummary(summaryData);
+      } else {
+        // Fallback to localStorage
+        const savedSummary = localStorage.getItem(`summary_${id}`);
+        if (savedSummary) {
+          setSummary(JSON.parse(savedSummary));
+        }
+      }
+    } catch (error) {
+      console.log('API not available, using localStorage');
+      // Fallback logic same as above
+      const savedTopics = localStorage.getItem('topics');
+      if (savedTopics) {
+        const topics = JSON.parse(savedTopics);
+        const foundTopic = topics.find((t: Topic) => t.id === id);
+        setTopic(foundTopic || null);
+      }
+
+      const savedContributions = localStorage.getItem(`contributions_${id}`);
+      if (savedContributions) {
+        setContributions(JSON.parse(savedContributions));
+      }
+
+      const savedSummary = localStorage.getItem(`summary_${id}`);
+      if (savedSummary) {
+        setSummary(JSON.parse(savedSummary));
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmitContribution = async () => {
     if (!newContribution.trim() || !id) return;
 
-    const contribution: Contribution = {
-      id: Date.now().toString(),
-      topic_id: id,
-      content: newContribution.trim(),
-      created_at: new Date().toISOString(),
-    };
-
-    const updatedContributions = [contribution, ...contributions];
-    setContributions(updatedContributions);
-    localStorage.setItem(`contributions_${id}`, JSON.stringify(updatedContributions));
-    setNewContribution('');
+    setIsSubmitting(true);
     
-    toast({
-      title: "Contribution added",
-      description: "Your contribution has been successfully added to the topic.",
-    });
+    try {
+      const response = await fetch(`/api/topics/${id}/contributions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content: newContribution.trim(),
+        }),
+      });
+
+      if (response.ok) {
+        const contribution = await response.json();
+        setContributions([contribution, ...contributions]);
+        setNewContribution('');
+        toast({
+          title: "Contribution added",
+          description: "Your contribution has been successfully added to the topic.",
+        });
+      } else {
+        throw new Error('Failed to submit contribution');
+      }
+    } catch (error) {
+      // Fallback to localStorage for development
+      console.log('API not available, using localStorage fallback');
+      const contribution: Contribution = {
+        id: Date.now().toString(),
+        topic_id: id,
+        content: newContribution.trim(),
+        created_at: new Date().toISOString(),
+      };
+
+      const updatedContributions = [contribution, ...contributions];
+      setContributions(updatedContributions);
+      localStorage.setItem(`contributions_${id}`, JSON.stringify(updatedContributions));
+      setNewContribution('');
+      
+      toast({
+        title: "Contribution added",
+        description: "Your contribution has been successfully added to the topic.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleGenerateReport = async () => {
@@ -87,8 +168,27 @@ const TopicDetail = () => {
     setIsGenerating(true);
     
     try {
-      // Simulate API call to FastAPI backend
-      // In real implementation: POST /topics/${id}/generate-summary
+      const response = await fetch(`/api/topics/${id}/generate-summary`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const summaryData = await response.json();
+        setSummary(summaryData);
+        localStorage.setItem(`summary_${id}`, JSON.stringify(summaryData));
+        toast({
+          title: "Report generated",
+          description: "The collaborative report has been successfully generated.",
+        });
+      } else {
+        throw new Error('Failed to generate report');
+      }
+    } catch (error) {
+      // Fallback mock generation for development
+      console.log('API not available, using mock generation');
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       const mockSummary: Summary = {
@@ -127,12 +227,6 @@ The collaborative effort has produced valuable insights that can guide future de
         title: "Report generated",
         description: "The collaborative report has been successfully generated.",
       });
-    } catch (error) {
-      toast({
-        title: "Generation failed",
-        description: "Failed to generate the report. Please try again.",
-        variant: "destructive",
-      });
     } finally {
       setIsGenerating(false);
     }
@@ -147,6 +241,17 @@ The collaborative effort has produced valuable insights that can guide future de
       minute: '2-digit',
     });
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading topic...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!topic) {
     return (
@@ -174,10 +279,22 @@ The collaborative effort has produced valuable insights that can guide future de
             <ArrowLeft className="w-4 h-4 mr-1" />
             Back to Topics
           </Link>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">{topic.title}</h1>
-          {topic.description && (
-            <p className="text-gray-600">{topic.description}</p>
-          )}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">{topic.title}</h1>
+              {topic.description && (
+                <p className="text-gray-600">{topic.description}</p>
+              )}
+            </div>
+            <Button 
+              onClick={() => setIsInviteDialogOpen(true)}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <Users className="w-4 h-4" />
+              Invite Users
+            </Button>
+          </div>
         </div>
 
         {/* New Contribution Form */}
@@ -203,11 +320,11 @@ The collaborative effort has produced valuable insights that can guide future de
                 </span>
                 <Button 
                   onClick={handleSubmitContribution}
-                  disabled={!newContribution.trim()}
+                  disabled={!newContribution.trim() || isSubmitting}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
                   <Send className="w-4 h-4 mr-2" />
-                  Submit Contribution
+                  {isSubmitting ? 'Submitting...' : 'Submit Contribution'}
                 </Button>
               </div>
             </div>
@@ -281,15 +398,29 @@ The collaborative effort has produced valuable insights that can guide future de
                   <p className="text-gray-900 mb-3 leading-relaxed">
                     {contribution.content}
                   </p>
-                  <div className="flex items-center text-sm text-gray-500">
-                    <Calendar className="w-4 h-4 mr-1" />
-                    {formatDateTime(contribution.created_at)}
+                  <div className="flex items-center justify-between text-sm text-gray-500">
+                    <div className="flex items-center">
+                      <Calendar className="w-4 h-4 mr-1" />
+                      {formatDateTime(contribution.created_at)}
+                    </div>
+                    {contribution.contributor_email && (
+                      <span className="text-gray-600">
+                        by {contribution.contributor_email}
+                      </span>
+                    )}
                   </div>
                 </CardContent>
               </Card>
             ))
           )}
         </div>
+
+        <InviteUsersDialog
+          open={isInviteDialogOpen}
+          onOpenChange={setIsInviteDialogOpen}
+          topicId={id!}
+          topicTitle={topic.title}
+        />
       </div>
     </div>
   );

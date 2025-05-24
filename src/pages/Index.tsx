@@ -5,6 +5,7 @@ import { Plus, FileText, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CreateTopicDialog } from '@/components/CreateTopicDialog';
+import { toast } from '@/hooks/use-toast';
 
 export interface Topic {
   id: string;
@@ -16,27 +17,80 @@ export interface Topic {
 const Index = () => {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Load topics from localStorage
-    const savedTopics = localStorage.getItem('topics');
-    if (savedTopics) {
-      setTopics(JSON.parse(savedTopics));
-    }
+    fetchTopics();
   }, []);
 
-  const handleCreateTopic = (title: string, description?: string) => {
-    const newTopic: Topic = {
-      id: Date.now().toString(),
-      title,
-      description,
-      created_at: new Date().toISOString(),
-    };
-    
-    const updatedTopics = [newTopic, ...topics];
-    setTopics(updatedTopics);
-    localStorage.setItem('topics', JSON.stringify(updatedTopics));
-    setIsCreateDialogOpen(false);
+  const fetchTopics = async () => {
+    try {
+      const response = await fetch('/api/topics');
+      if (response.ok) {
+        const data = await response.json();
+        setTopics(data);
+      } else {
+        // Fallback to localStorage for development
+        const savedTopics = localStorage.getItem('topics');
+        if (savedTopics) {
+          setTopics(JSON.parse(savedTopics));
+        }
+      }
+    } catch (error) {
+      console.log('API not available, using localStorage');
+      const savedTopics = localStorage.getItem('topics');
+      if (savedTopics) {
+        setTopics(JSON.parse(savedTopics));
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateTopic = async (title: string, description?: string) => {
+    try {
+      const response = await fetch('/api/topics', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title,
+          description,
+        }),
+      });
+
+      if (response.ok) {
+        const newTopic = await response.json();
+        setTopics([newTopic, ...topics]);
+        setIsCreateDialogOpen(false);
+        toast({
+          title: "Topic created",
+          description: "Your new topic has been created successfully.",
+        });
+      } else {
+        throw new Error('Failed to create topic');
+      }
+    } catch (error) {
+      // Fallback to localStorage for development
+      console.log('API not available, using localStorage fallback');
+      const newTopic: Topic = {
+        id: Date.now().toString(),
+        title,
+        description,
+        created_at: new Date().toISOString(),
+      };
+      
+      const updatedTopics = [newTopic, ...topics];
+      setTopics(updatedTopics);
+      localStorage.setItem('topics', JSON.stringify(updatedTopics));
+      setIsCreateDialogOpen(false);
+      
+      toast({
+        title: "Topic created",
+        description: "Your new topic has been created successfully (using local storage).",
+      });
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -46,6 +100,17 @@ const Index = () => {
       day: 'numeric',
     });
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading topics...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
