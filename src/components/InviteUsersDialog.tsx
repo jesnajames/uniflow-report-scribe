@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { X, UserPlus } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
+const BASE_URL = import.meta.env.VITE_BASE_URL
 interface InviteUsersDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -56,7 +57,7 @@ export function InviteUsersDialog({ open, onOpenChange, topicId, topicTitle }: I
     setIsInviting(true);
     
     try {
-      const response = await fetch(`/api/topics/${topicId}/invite`, {
+      const response = await fetch(`${BASE_URL}/api/topics/${topicId}/invite`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

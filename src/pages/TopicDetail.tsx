@@ -57,11 +57,11 @@ const TopicDetail = () => {
       }
 
       // Fetch summary
-      const summaryResponse = await fetch(`${BASE_URL}/api/topics/${id}/summary`);
-      if (summaryResponse.ok) {
-        const summaryData = await summaryResponse.json();
-        setSummary(summaryData);
-      }
+      // const summaryResponse = await fetch(`${BASE_URL}/api/topics/${id}/summary`);
+      // if (summaryResponse.ok) {
+      //   const summaryData = await summaryResponse.json();
+      //   setSummary(summaryData);
+      // }
     } catch (error) {
       console.log('API not available', error);
     } finally {
@@ -141,45 +141,12 @@ const TopicDetail = () => {
         throw new Error('Failed to generate report');
       }
     } catch (error) {
-      // Fallback mock generation for development
       console.log('API not available, using mock generation');
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const mockSummary: Summary = {
-        topic_id: id,
-        content: `# Summary Report for ${topic?.title}
-
-This document presents a comprehensive analysis of all contributions submitted for this topic.
-
-## Key Insights
-
-Based on the ${contributions.length} contribution${contributions.length !== 1 ? 's' : ''} received, several important themes emerge:
-
-${contributions.slice(0, 3).map((contrib, index) => 
-  `### Insight ${index + 1}
-${contrib.content.substring(0, 200)}${contrib.content.length > 200 ? '...' : ''}`
-).join('\n\n')}
-
-## Recommendations
-
-1. **Continue the discussion** - The contributions show diverse perspectives that merit further exploration
-2. **Action items** - Consider implementing the practical suggestions mentioned in the contributions
-3. **Follow-up** - Schedule regular reviews to track progress on discussed topics
-
-## Conclusion
-
-The collaborative effort has produced valuable insights that can guide future decision-making and strategy development.
-
-*Report generated on ${new Date().toLocaleDateString()} from ${contributions.length} contributions*`,
-        generated_at: new Date().toISOString(),
-      };
-
-      setSummary(mockSummary);
-      localStorage.setItem(`summary_${id}`, JSON.stringify(mockSummary));
-      
       toast({
-        title: "Report generated",
-        description: "The collaborative report has been successfully generated.",
+        title: "Could not generate report",
+        description: "An error occurred while generating the report. Please try again later.",
+        variant: "destructive",
       });
     } finally {
       setIsGenerating(false);
