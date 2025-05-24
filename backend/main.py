@@ -6,11 +6,12 @@ from fastapi import FastAPI
 from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.exceptions import AlreadyExists
 from backend.repositories.topics_db import list_topics, create_topic, get_topic
 from backend.repositories.contributions_db import list_topic_contributions, create_contribution
 from backend.repositories.user_db import create_user, get_user
 from backend.models.models import Topic, Contribution, Summary, TopicCreate, ContributionCreate, InviteUsers, \
-    UserAccount, UserLogin
+    UserAccount, UserLogin, LoggedInUser
 
 app = FastAPI(title="UniNoter API", version="1.0.0")
 
@@ -29,19 +30,22 @@ async def root():
     return {"message": "UniNoter API is running"}
 
 
-@app.post("/auth/create-account", response_model=UserAccount)
+@app.post("/auth/create-account", response_model=LoggedInUser)
 async def create_user_account(user_account: UserAccount):
     print(f"Creating user account", user_account)
-    create_user(user_account)
-    return user_account
+    try:
+        create_user(user_account)
+        return LoggedInUser(user=user_account, token=user_account.password)
+    except AlreadyExists as e:
+        raise HTTPException(status_code=e.status_code, detail=str(e))
 
 
-@app.post("/auth/signin", response_model=UserAccount)
+@app.post("/auth/signin", response_model=LoggedInUser)
 async def user_signin(user_login: UserLogin):
     user_email = user_login.email
     user = get_user(user_email)
     if user.get("password") == user_login.password:
-        return UserAccount(**user)
+        return LoggedInUser(user=UserAccount(**user), token=user.get("password", ""))
 
 
 @app.get("/api/topics", response_model=List[Topic])
