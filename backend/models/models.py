@@ -35,3 +35,19 @@ class Summary(BaseModel):
 
 class InviteUsers(BaseModel):
     emails: List[str]
+
+
+class UserAccount(BaseModel):
+    email: str
+    password: str
+    name: str
+
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+
+class LoggedInUser(BaseModel):
+    user: UserAccount
+    token: str

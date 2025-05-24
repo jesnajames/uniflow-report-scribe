@@ -1,10 +1,10 @@
-
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, FileText, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { CreateTopicDialog } from '@/components/CreateTopicDialog';
+import { UserMenu } from '@/components/UserMenu';
 import { toast } from '@/hooks/use-toast';
 
 export interface Topic {
@@ -111,13 +111,16 @@ const Index = () => {
             <h1 className="text-3xl font-bold text-gray-900">UniNoter</h1>
             <p className="text-gray-600 mt-1">Collaborative document creation made simple</p>
           </div>
-          <Button 
-            onClick={() => setIsCreateDialogOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Create New Topic
-          </Button>
+          <div className="flex items-center gap-4">
+            <Button 
+              onClick={() => setIsCreateDialogOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create New Topic
+            </Button>
+            <UserMenu />
+          </div>
         </div>
 
         {/* Topics List */}
