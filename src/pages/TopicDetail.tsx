@@ -8,6 +8,8 @@ import { InviteUsersDialog } from '@/components/InviteUsersDialog';
 import { toast } from '@/hooks/use-toast';
 import type { Topic } from './Index';
 
+
+const BASE_URL = import.meta.env.VITE_BASE_URL
 export interface Contribution {
   id: string;
   topic_id: string;
@@ -41,64 +43,27 @@ const TopicDetail = () => {
   const fetchTopicData = async () => {
     try {
       // Fetch topic
-      const topicResponse = await fetch(`/api/topics/${id}`);
+      const topicResponse = await fetch(`${BASE_URL}/api/topics/${id}`);
       if (topicResponse.ok) {
         const topicData = await topicResponse.json();
         setTopic(topicData);
-      } else {
-        // Fallback to localStorage
-        const savedTopics = localStorage.getItem('topics');
-        if (savedTopics) {
-          const topics = JSON.parse(savedTopics);
-          const foundTopic = topics.find((t: Topic) => t.id === id);
-          setTopic(foundTopic || null);
-        }
       }
 
       // Fetch contributions
-      const contributionsResponse = await fetch(`/api/topics/${id}/contributions`);
+      const contributionsResponse = await fetch(`${BASE_URL}/api/topics/${id}/contributions`);
       if (contributionsResponse.ok) {
         const contributionsData = await contributionsResponse.json();
         setContributions(contributionsData);
-      } else {
-        // Fallback to localStorage
-        const savedContributions = localStorage.getItem(`contributions_${id}`);
-        if (savedContributions) {
-          setContributions(JSON.parse(savedContributions));
-        }
       }
 
       // Fetch summary
-      const summaryResponse = await fetch(`/api/topics/${id}/summary`);
+      const summaryResponse = await fetch(`${BASE_URL}/api/topics/${id}/summary`);
       if (summaryResponse.ok) {
         const summaryData = await summaryResponse.json();
         setSummary(summaryData);
-      } else {
-        // Fallback to localStorage
-        const savedSummary = localStorage.getItem(`summary_${id}`);
-        if (savedSummary) {
-          setSummary(JSON.parse(savedSummary));
-        }
       }
     } catch (error) {
-      console.log('API not available, using localStorage');
-      // Fallback logic same as above
-      const savedTopics = localStorage.getItem('topics');
-      if (savedTopics) {
-        const topics = JSON.parse(savedTopics);
-        const foundTopic = topics.find((t: Topic) => t.id === id);
-        setTopic(foundTopic || null);
-      }
-
-      const savedContributions = localStorage.getItem(`contributions_${id}`);
-      if (savedContributions) {
-        setContributions(JSON.parse(savedContributions));
-      }
-
-      const savedSummary = localStorage.getItem(`summary_${id}`);
-      if (savedSummary) {
-        setSummary(JSON.parse(savedSummary));
-      }
+      console.log('API not available', error);
     } finally {
       setIsLoading(false);
     }
@@ -110,7 +75,7 @@ const TopicDetail = () => {
     setIsSubmitting(true);
     
     try {
-      const response = await fetch(`/api/topics/${id}/contributions`, {
+      const response = await fetch(`${BASE_URL}/api/topics/${id}/contributions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -133,23 +98,12 @@ const TopicDetail = () => {
       }
     } catch (error) {
       // Fallback to localStorage for development
-      console.log('API not available, using localStorage fallback');
-      const contribution: Contribution = {
-        id: Date.now().toString(),
-        topic_id: id,
-        content: newContribution.trim(),
-        created_at: new Date().toISOString(),
-      };
-
-      const updatedContributions = [contribution, ...contributions];
-      setContributions(updatedContributions);
-      localStorage.setItem(`contributions_${id}`, JSON.stringify(updatedContributions));
-      setNewContribution('');
-      
+      console.log('API not available', error);
       toast({
-        title: "Contribution added",
-        description: "Your contribution has been successfully added to the topic.",
-      });
+        title: "Error",
+        description: "Failed to submit contribution. Please try again later.",
+        variant: "destructive",
+      })
     } finally {
       setIsSubmitting(false);
     }
@@ -168,7 +122,7 @@ const TopicDetail = () => {
     setIsGenerating(true);
     
     try {
-      const response = await fetch(`/api/topics/${id}/generate-summary`, {
+      const response = await fetch(`${BASE_URL}/api/topics/${id}/generate-summary`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

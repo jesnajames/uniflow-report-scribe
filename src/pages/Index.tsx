@@ -14,6 +14,8 @@ export interface Topic {
   created_at: string;
 }
 
+const BASE_URL = import.meta.env.VITE_BASE_URL
+
 const Index = () => {
   const [topics, setTopics] = useState<Topic[]>([]);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -25,23 +27,20 @@ const Index = () => {
 
   const fetchTopics = async () => {
     try {
-      const response = await fetch('/api/topics');
+      const response = await fetch(`${BASE_URL}/api/topics`);
+      console.log("fetch topics response", response);
       if (response.ok) {
         const data = await response.json();
+        console.log("fetch topics data", data);
         setTopics(data);
-      } else {
-        // Fallback to localStorage for development
-        const savedTopics = localStorage.getItem('topics');
-        if (savedTopics) {
-          setTopics(JSON.parse(savedTopics));
-        }
-      }
+      } 
     } catch (error) {
-      console.log('API not available, using localStorage');
-      const savedTopics = localStorage.getItem('topics');
-      if (savedTopics) {
-        setTopics(JSON.parse(savedTopics));
-      }
+      console.log('API not available');
+      toast({
+        title: "Could not fetch topics",
+        description: "Something went wrong",
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false);
     }
@@ -49,16 +48,18 @@ const Index = () => {
 
   const handleCreateTopic = async (title: string, description?: string) => {
     try {
-      const response = await fetch('/api/topics', {
+      const data = JSON.stringify({
+          title,
+          description,
+        })
+      const response = await fetch(`${BASE_URL}/api/topics`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          title,
-          description,
-        }),
+        body: data,
       });
+      console.log("create topics response", response);
 
       if (response.ok) {
         const newTopic = await response.json();
@@ -72,23 +73,12 @@ const Index = () => {
         throw new Error('Failed to create topic');
       }
     } catch (error) {
-      // Fallback to localStorage for development
-      console.log('API not available, using localStorage fallback');
-      const newTopic: Topic = {
-        id: Date.now().toString(),
-        title,
-        description,
-        created_at: new Date().toISOString(),
-      };
-      
-      const updatedTopics = [newTopic, ...topics];
-      setTopics(updatedTopics);
-      localStorage.setItem('topics', JSON.stringify(updatedTopics));
+      console.log('API not available', error);
       setIsCreateDialogOpen(false);
-      
       toast({
-        title: "Topic created",
-        description: "Your new topic has been created successfully (using local storage).",
+        title: "Could not create topic",
+        description: "Something went wrong",
+        variant: "destructive",
       });
     }
   };
