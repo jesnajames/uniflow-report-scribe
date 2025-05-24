@@ -100,29 +100,22 @@ async def create_new_contribution(topic_id: str, contribution: ContributionCreat
 @app.post("/api/topics/{topic_id}/generate-summary", response_model=Summary)
 async def generate_summary(topic_id: str):
     """Generate a summary report for a topic"""
-    if topic_id not in topics_db:
-        raise HTTPException(status_code=404, detail="Topic not found")
-
-    # Get topic and contributions
-    topic = topics_db[topic_id]
-    topic_contributions = [
-        contrib for contrib in contributions_db.values()
-        if contrib["topic_id"] == topic_id
-    ]
-
+    print(f"Generating summary for topic", topic_id)
+    topic = get_topic(topic_id)
+    topic_contributions = list_topic_contributions(topic_id)
     if not topic_contributions:
         raise HTTPException(status_code=400, detail="No contributions found for this topic")
 
     # Simple summary generation (replace with AI/ML service in production)
     summary_content = f"""# Summary Report for {topic['title']}
-
-This document presents a comprehensive analysis of all contributions submitted for this topic.
-
-## Key Insights
-
-Based on the {len(topic_contributions)} contribution{'s' if len(topic_contributions) != 1 else ''} received, several important themes emerge:
-
-"""
+    
+    This document presents a comprehensive analysis of all contributions submitted for this topic.
+    
+    ## Key Insights
+    
+    Based on the {len(topic_contributions)} contribution{'s' if len(topic_contributions) != 1 else ''} received, several important themes emerge:
+    
+    """
 
     for i, contrib in enumerate(topic_contributions[:3], 1):
         content_preview = contrib['content'][:200] + ('...' if len(contrib['content']) > 200 else '')
@@ -151,28 +144,20 @@ The collaborative effort has produced valuable insights that can guide future de
         content=summary_content,
         generated_at=datetime.now().isoformat()
     )
-
-    summaries_db[topic_id] = summary.dict()
-    save_data()
-
+    # TODO save summary?
     return summary
 
 
-@app.get("/api/topics/{topic_id}/summary", response_model=Summary)
-async def get_summary(topic_id: str):
-    """Get the generated summary for a topic"""
-    if topic_id not in topics_db:
-        raise HTTPException(status_code=404, detail="Topic not found")
-
-    if topic_id not in summaries_db:
-        raise HTTPException(status_code=404, detail="Summary not found")
-
-    return Summary(**summaries_db[topic_id])
+# @app.get("/api/topics/{topic_id}/summary", response_model=Summary)
+# async def get_summary(topic_id: str):
+#     """Get the generated summary for a topic"""
+#     return Summary(**summaries_db[topic_id])
 
 
 @app.post("/api/topics/{topic_id}/invite")
 async def invite_users(topic_id: str, invite_data: InviteUsers):
     """Invite users to collaborate on a topic"""
+    print(f"Inviting users to collaborate on topic", topic_id, invite_data)
 
     # In a real implementation, you would:
     # 1. Send email invitations
@@ -189,5 +174,4 @@ async def invite_users(topic_id: str, invite_data: InviteUsers):
 
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(app, host="localhost", port=8080)
