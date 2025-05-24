@@ -61,7 +61,7 @@ export function SignupForm({ onSwitchToLogin }: SignupFormProps) {
     } catch (error) {
       toast({
         title: "Signup failed",
-        description: "Could not create account. Please try again.",
+        description: `${error}`,
         variant: "destructive",
       });
     } finally {

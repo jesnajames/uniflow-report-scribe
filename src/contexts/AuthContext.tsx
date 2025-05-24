@@ -1,11 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import  User from '../types/user';
 
-interface User {
-  id: string;
-  email: string;
-  name?: string;
-}
 
 interface AuthContextType {
   user: User | null;
@@ -50,6 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     const userData = await response.json();
+    console.log("userData after login", userData);
     setUser(userData.user);
     localStorage.setItem('auth_user', JSON.stringify(userData.user));
     
@@ -69,10 +66,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (!response.ok) {
+      console.log("response status", response.status);
+      if (response.status == 409) {
+        throw new Error('Email already exists');
+      }
       throw new Error('Failed to create account');
     }
 
     const userData = await response.json();
+    console.log("userData after signup", userData);
     setUser(userData.user);
     localStorage.setItem('auth_user', JSON.stringify(userData.user));
     
